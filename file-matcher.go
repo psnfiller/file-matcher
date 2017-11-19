@@ -152,7 +152,7 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
-	findMatchingFiles(os.Args[1])
+	findMatchingFiles(flag.Args()[0])
 }
 
 func findMatchingFiles(dir string) {
