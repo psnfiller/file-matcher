@@ -32,7 +32,9 @@ type stats struct {
 	timeHash    time.Duration
 }
 
-func printStats(st stats) {
+func printStats(st *stats) {
+
+	st.mu.Lock()
 	fmt.Println("stats")
 	fmt.Printf("dirs %d\n", st.readdirs)
 	fmt.Printf("errors %d\n", st.errors)
@@ -44,6 +46,7 @@ func printStats(st stats) {
 	v, unit := humanize.ComputeSI(throughput)
 
 	fmt.Printf("hash throughput %.2f%sBytes/sec\n", v, unit)
+	st.mu.Unlock()
 }
 
 type file struct {
@@ -91,6 +94,13 @@ func hashFiles(in []file, stat *stats) ([]file, error) {
 			continue
 		}
 		h := sha256.New()
+		bufferSize := 1 << 20
+		b1 := make([]byte, bufferSize)
+		n1, err := f.Read(b1)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		if _, err := io.Copy(h, f); err != nil {
 			log.Print(err)
 			stat.errors++
@@ -152,11 +162,17 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
-	findMatchingFiles(flag.Args()[0])
+	st := stats{}
+	go func() {
+		for {
+			time.Sleep(time.Second)
+			printStats(&st)
+		}
+	}()
+	findMatchingFiles(flag.Args()[0], &st)
 }
 
-func findMatchingFiles(dir string) {
-	st := stats{}
+func findMatchingFiles(dir string, st *stats) {
 	start := time.Now()
 	fi, err := processDir(dir, &st)
 	if err != nil {
@@ -176,7 +192,7 @@ func findMatchingFiles(dir string) {
 	var wg sync.WaitGroup
 	wg.Add(workers)
 	for w := 0; w < workers; w++ {
-		go hashWorker(w, &wg, jobs, results, &st)
+		go hashWorker(w, &wg, jobs, results, st)
 	}
 
 	go func() {
