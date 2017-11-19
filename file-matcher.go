@@ -106,7 +106,7 @@ func hashFiles(in []file, stat *stats) ([]file, error) {
 }
 
 func hashWorker(id int, jobs <-chan file, results chan<- file, stat *stats) {
-	for j := range jobs {
+	for fi := range jobs {
 		f, err := os.Open(fi.path)
 		if err != nil {
 			log.Print(err)
