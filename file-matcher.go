@@ -9,6 +9,8 @@ import (
 	"os"
 	"path"
 	"time"
+
+	"github.com/dustin/go-humanize"
 )
 
 type stats struct {
@@ -20,14 +22,14 @@ type stats struct {
 	bytesHashed int64
 }
 
-func printStats() {
+func printStats(st stats) {
 	fmt.Println("stats")
 	fmt.Printf("dirs %d\n", st.readdirs)
 	fmt.Printf("errors %d\n", st.errors)
 	fmt.Printf("files %d\n", st.files)
 	fmt.Printf("hashes %d\n", st.hashes)
-	fmt.Printf("bytes %d\n", st.bytes)
-	fmt.Printf("bytes hashed %d\n", st.bytesHashed)
+	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
+	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
 }
 
 type file struct {
@@ -69,17 +71,21 @@ func hashFiles(in []file, stat *stats) ([]file, error) {
 	for _, fi := range in {
 		f, err := os.Open(fi.path)
 		if err != nil {
-			return []file{}, err
+			log.Print(err)
+			stat.errors++
+			continue
 		}
 		h := sha256.New()
 		if _, err := io.Copy(h, f); err != nil {
-			return []file{}, err
+			log.Print(err)
+			stat.errors++
+			continue
 		}
 		f.Close()
 		key := fmt.Sprintf("%x", h.Sum(nil))
 		stat.hashes++
 		hashes[key] = append(hashes[key], fi)
-		stat.bytes_hashed += fi.fi.Size()
+		stat.bytesHashed += fi.fi.Size()
 	}
 	for _, v := range hashes {
 		if len(v) > 1 {
@@ -98,10 +104,6 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println(time.Since(start))
-	fmt.Println("stats")
-	fmt.Printf("dirs %d\n", st.readdirs)
-	fmt.Printf("errors %d\n", st.errors)
-	fmt.Printf("files %d\n", st.files)
 
 	sizeToFiles := make(map[int64][]file)
 	for _, e := range fi {
@@ -119,5 +121,5 @@ func main() {
 	}
 
 	fmt.Println(time.Since(start))
-	printStats()
+	printStats(st)
 }
