@@ -41,7 +41,7 @@ func printStats(st *stats) {
 	fmt.Printf("hashes %d\n", st.hashes)
 	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
-	if st.hashStart > 0 {
+	if !st.hashStart.IsZero() {
 		secs := time.Since(st.hashStart).Seconds()
 		throughput := float64(st.bytesHashed) / float64(secs)
 		v, unit := humanize.ComputeSI(throughput)
@@ -169,12 +169,10 @@ func main() {
 }
 
 func findMatchingFiles(dir string, st *stats) {
-	start := time.Now()
 	fi, err := processDir(dir, st)
 	if err != nil {
 		log.Fatal(err)
 	}
-	st.timeStat = time.Since(start)
 
 	sizeToFiles := make(map[int64][]file)
 	for _, e := range fi {
@@ -216,6 +214,5 @@ func findMatchingFiles(dir string, st *stats) {
 			fmt.Println(v)
 		}
 	}
-	st.timeHash = time.Since(start)
 	printStats(st)
 }
