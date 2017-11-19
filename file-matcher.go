@@ -20,6 +20,8 @@ type stats struct {
 	bytes       int64
 	hashes      int
 	bytesHashed int64
+	timeStat    time.Duration
+	timehash    time.Duration
 }
 
 func printStats(st stats) {
@@ -30,6 +32,9 @@ func printStats(st stats) {
 	fmt.Printf("hashes %d\n", st.hashes)
 	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
+	throughput := float64(st.bytesHashed) / st.timehash.Seconds()
+
+	fmt.Printf("hash throughput %f %s\n", humanize.ComputeSI(throughput))
 }
 
 type file struct {
@@ -95,6 +100,11 @@ func hashFiles(in []file, stat *stats) ([]file, error) {
 	return []file{}, nil
 }
 
+/*
+func hashWorker(id int,  jobs <-chan file, results chan<- file) {
+	for j := range jobs {
+
+*/
 func main() {
 	dir := os.Args[1]
 	st := stats{}
@@ -109,6 +119,7 @@ func main() {
 	for _, e := range fi {
 		sizeToFiles[e.Size()] = append(sizeToFiles[e.Size()], e)
 	}
+
 	start = time.Now()
 	for _, v := range sizeToFiles {
 		if len(v) <= 2 {
