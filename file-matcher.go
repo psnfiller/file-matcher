@@ -2,17 +2,23 @@ package main
 
 import (
 	"crypto/sha256"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"runtime/pprof"
 	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
 )
+
+import _ "net/http/pprof"
+
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 type stats struct {
 	mu          sync.Mutex
@@ -105,7 +111,7 @@ func hashFiles(in []file, stat *stats) ([]file, error) {
 	return []file{}, nil
 }
 
-func hashWorker(id int, jobs <-chan file, results chan<- file, stat *stats) {
+func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats) {
 	for fi := range jobs {
 		f, err := os.Open(fi.path)
 		if err != nil {
@@ -130,13 +136,26 @@ func hashWorker(id int, jobs <-chan file, results chan<- file, stat *stats) {
 		stat.hashes++
 		stat.bytesHashed += fi.fi.Size()
 		stat.mu.Unlock()
-		file.hash = key
-		results <- file
+		out := file{fi.fi, fi.path, key}
+		results <- out
 	}
+	wg.Done()
 }
 
 func main() {
-	dir := os.Args[1]
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+	findMatchingFiles(os.Args[1])
+}
+
+func findMatchingFiles(dir string) {
 	st := stats{}
 	start := time.Now()
 	fi, err := processDir(dir, &st)
@@ -151,10 +170,13 @@ func main() {
 	}
 
 	start = time.Now()
-	jobs := make(chan int, 100)
-	results := make(chan int, 100)
-	for w := 1; w <= 3; w++ {
-		go hashWorker(w, jobs, results)
+	jobs := make(chan file, 100)
+	results := make(chan file, 100)
+	workers := 50
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := 0; w < workers; w++ {
+		go hashWorker(w, &wg, jobs, results, &st)
 	}
 
 	go func() {
@@ -168,8 +190,19 @@ func main() {
 		}
 		close(jobs)
 	}()
-	for {
-		<-results
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	hashToFiles := make(map[string][]file)
+	for r := range results {
+		hashToFiles[r.hash] = append(hashToFiles[r.hash], r)
+	}
+	for _, v := range hashToFiles {
+		if len(v) > 1 {
+			fmt.Println(v)
+		}
 	}
 	st.timeHash = time.Since(start)
 	printStats(st)
