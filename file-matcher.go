@@ -28,8 +28,7 @@ type stats struct {
 	bytes       int64
 	hashes      int
 	bytesHashed int64
-	timeStat    time.Duration
-	timeHash    time.Duration
+	hashStart   time.Time
 }
 
 func printStats(st *stats) {
@@ -42,10 +41,13 @@ func printStats(st *stats) {
 	fmt.Printf("hashes %d\n", st.hashes)
 	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
-	throughput := float64(st.bytesHashed) / st.timeHash.Seconds()
-	v, unit := humanize.ComputeSI(throughput)
+	if st.hashStart > 0 {
+		secs := time.Since(st.hashStart).Seconds()
+		throughput := float64(st.bytesHashed) / float64(secs)
+		v, unit := humanize.ComputeSI(throughput)
 
-	fmt.Printf("hash throughput %.2f%sBytes/sec\n", v, unit)
+		fmt.Printf("hash throughput %.2f%sBytes/sec\n", v, unit)
+	}
 	st.mu.Unlock()
 }
 
@@ -94,12 +96,6 @@ func hashFiles(in []file, stat *stats) ([]file, error) {
 			continue
 		}
 		h := sha256.New()
-		bufferSize := 1 << 20
-		b1 := make([]byte, bufferSize)
-		n1, err := f.Read(b1)
-		if err != nil {
-			log.Fatal(err)
-		}
 
 		if _, err := io.Copy(h, f); err != nil {
 			log.Print(err)
@@ -174,7 +170,7 @@ func main() {
 
 func findMatchingFiles(dir string, st *stats) {
 	start := time.Now()
-	fi, err := processDir(dir, &st)
+	fi, err := processDir(dir, st)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -185,7 +181,7 @@ func findMatchingFiles(dir string, st *stats) {
 		sizeToFiles[e.Size()] = append(sizeToFiles[e.Size()], e)
 	}
 
-	start = time.Now()
+	st.hashStart = time.Now()
 	jobs := make(chan file, 100)
 	results := make(chan file, 100)
 	workers := 50
