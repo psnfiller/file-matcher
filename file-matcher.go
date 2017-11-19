@@ -8,12 +8,14 @@ import (
 	"log"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
 )
 
 type stats struct {
+	mu          sync.Mutex
 	readdirs    int
 	errors      int
 	files       int
@@ -21,7 +23,7 @@ type stats struct {
 	hashes      int
 	bytesHashed int64
 	timeStat    time.Duration
-	timehash    time.Duration
+	timeHash    time.Duration
 }
 
 func printStats(st stats) {
@@ -32,14 +34,16 @@ func printStats(st stats) {
 	fmt.Printf("hashes %d\n", st.hashes)
 	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
-	throughput := float64(st.bytesHashed) / st.timehash.Seconds()
+	throughput := float64(st.bytesHashed) / st.timeHash.Seconds()
+	v, unit := humanize.ComputeSI(throughput)
 
-	fmt.Printf("hash throughput %f %s\n", humanize.ComputeSI(throughput))
+	fmt.Printf("hash throughput %.2f%sBytes/sec\n", v, unit)
 }
 
 type file struct {
 	fi   os.FileInfo
 	path string
+	hash string
 }
 
 func (f file) Size() int64 { return f.fi.Size() }
@@ -63,7 +67,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		} else if e.Mode().IsRegular() && e.Size() > 0 {
 			stat.files++
 			stat.bytes += e.Size()
-			x := file{e, p}
+			x := file{e, p, ""}
 			out = append(out, x)
 		}
 
@@ -92,6 +96,7 @@ func hashFiles(in []file, stat *stats) ([]file, error) {
 		hashes[key] = append(hashes[key], fi)
 		stat.bytesHashed += fi.fi.Size()
 	}
+
 	for _, v := range hashes {
 		if len(v) > 1 {
 			return v, nil
@@ -100,11 +105,36 @@ func hashFiles(in []file, stat *stats) ([]file, error) {
 	return []file{}, nil
 }
 
-/*
-func hashWorker(id int,  jobs <-chan file, results chan<- file) {
+func hashWorker(id int, jobs <-chan file, results chan<- file, stat *stats) {
 	for j := range jobs {
+		f, err := os.Open(fi.path)
+		if err != nil {
+			log.Print(err)
+			stat.mu.Lock()
+			stat.errors++
+			stat.mu.Unlock()
+			continue
+		}
 
-*/
+		h := sha256.New()
+		if _, err := io.Copy(h, f); err != nil {
+			log.Print(err)
+			stat.mu.Lock()
+			stat.errors++
+			stat.mu.Unlock()
+			continue
+		}
+		f.Close()
+		key := fmt.Sprintf("%x", h.Sum(nil))
+		stat.mu.Lock()
+		stat.hashes++
+		stat.bytesHashed += fi.fi.Size()
+		stat.mu.Unlock()
+		file.hash = key
+		results <- file
+	}
+}
+
 func main() {
 	dir := os.Args[1]
 	st := stats{}
@@ -113,7 +143,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(time.Since(start))
+	st.timeStat = time.Since(start)
 
 	sizeToFiles := make(map[int64][]file)
 	for _, e := range fi {
@@ -121,16 +151,26 @@ func main() {
 	}
 
 	start = time.Now()
-	for _, v := range sizeToFiles {
-		if len(v) <= 2 {
-			continue
-		}
-		_, err := hashFiles(v, &st)
-		if err != nil {
-			log.Fatal(err)
-		}
+	jobs := make(chan int, 100)
+	results := make(chan int, 100)
+	for w := 1; w <= 3; w++ {
+		go hashWorker(w, jobs, results)
 	}
 
-	fmt.Println(time.Since(start))
+	go func() {
+		for _, v := range sizeToFiles {
+			if len(v) <= 2 {
+				continue
+			}
+			for _, vv := range v {
+				jobs <- vv
+			}
+		}
+		close(jobs)
+	}()
+	for {
+		<-results
+	}
+	st.timeHash = time.Since(start)
 	printStats(st)
 }
