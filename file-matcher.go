@@ -21,18 +21,19 @@ import _ "net/http/pprof"
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 type stats struct {
-	mu          sync.Mutex
-	readdirs    int
-	errors      int
-	files       int
-	bytes       int64
-	hashes      int
-	bytesHashed int64
-	hashStart   time.Time
+	mu           sync.Mutex
+	readdirs     int
+	errors       int
+	files        int
+	bytes        int64
+	hashes       int
+	bytesHashed  int64
+	hashStart    time.Time
+	readDirStart time.Time
+	readDirEnd   time.Time
 }
 
 func printStats(st *stats) {
-
 	st.mu.Lock()
 	fmt.Println("stats")
 	fmt.Printf("dirs %d\n", st.readdirs)
@@ -45,9 +46,20 @@ func printStats(st *stats) {
 		secs := time.Since(st.hashStart).Seconds()
 		throughput := float64(st.bytesHashed) / float64(secs)
 		v, unit := humanize.ComputeSI(throughput)
-
 		fmt.Printf("hash throughput %.2f%sBytes/sec\n", v, unit)
 	}
+	if !st.readDirStart.IsZero() {
+		var secs float64
+		if st.readDirEnd.IsZero() {
+			secs = time.Since(st.readDirStart).Seconds()
+		} else {
+			secs = st.readDirEnd.Sub(st.readDirStart).Seconds()
+		}
+		throughput := float64(st.files) / float64(secs)
+		v, unit := humanize.ComputeSI(throughput)
+		fmt.Printf("readdir throughput %.2f%sfiles/sec\n", v, unit)
+	}
+
 	st.mu.Unlock()
 }
 
@@ -169,10 +181,12 @@ func main() {
 }
 
 func findMatchingFiles(dir string, st *stats) {
+	st.readDirStart = time.Now()
 	fi, err := processDir(dir, st)
 	if err != nil {
 		log.Fatal(err)
 	}
+	st.readDirEnd = time.Now()
 
 	sizeToFiles := make(map[int64][]file)
 	for _, e := range fi {
