@@ -94,7 +94,9 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		} else if e.Mode().IsRegular() && e.Size() > 0 {
 			stat.files++
 			stat.bytes += e.Size()
-			x := file{e, p, ""}
+			x := file{}
+			x.fi = e
+			x.path = p
 			out = append(out, x)
 		}
 
@@ -130,7 +132,11 @@ func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<
 		stat.hashes++
 		stat.bytesHashed += fi.fi.Size()
 		stat.mu.Unlock()
-		out := file{fi.fi, fi.path, key}
+		out := file{}
+		out.fi = fi.fi
+		out.path = fi.path
+		out.shortHash = key
+		out.shortHashLength = bytesRead
 		results <- out
 	}
 	wg.Done()
