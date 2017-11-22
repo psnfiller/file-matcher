@@ -21,16 +21,17 @@ import _ "net/http/pprof"
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 type stats struct {
-	mu           sync.Mutex
-	readdirs     int
-	errors       int
-	files        int
-	bytes        int64
-	hashes       int
-	bytesHashed  int64
-	hashStart    time.Time
-	readDirStart time.Time
-	readDirEnd   time.Time
+	mu               sync.Mutex
+	readdirs         int
+	errors           int
+	files            int
+	bytes            int64
+	hashes           int
+	bytesHashed      int64
+	bytesShortHashed int64
+	hashStart        time.Time
+	readDirStart     time.Time
+	readDirEnd       time.Time
 }
 
 func printStats(st *stats) {
@@ -41,6 +42,7 @@ func printStats(st *stats) {
 	fmt.Printf("files %d\n", st.files)
 	fmt.Printf("hashes %d\n", st.hashes)
 	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
+	fmt.Printf("bytes short hashed %s\n", humanize.Bytes(uint64(st.bytesShortHashed)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
 	if !st.hashStart.IsZero() {
 		secs := time.Since(st.hashStart).Seconds()
@@ -64,9 +66,11 @@ func printStats(st *stats) {
 }
 
 type file struct {
-	fi   os.FileInfo
-	path string
-	hash string
+	fi              os.FileInfo
+	path            string
+	hash            string
+	shortHash       string
+	shortHashLength uint64
 }
 
 func (f file) Size() int64 { return f.fi.Size() }
@@ -98,38 +102,9 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	return out, nil
 }
 
-func hashFiles(in []file, stat *stats) ([]file, error) {
-	hashes := make(map[string][]file)
-	for _, fi := range in {
-		f, err := os.Open(fi.path)
-		if err != nil {
-			log.Print(err)
-			stat.errors++
-			continue
-		}
-		h := sha256.New()
-
-		if _, err := io.Copy(h, f); err != nil {
-			log.Print(err)
-			stat.errors++
-			continue
-		}
-		f.Close()
-		key := fmt.Sprintf("%x", h.Sum(nil))
-		stat.hashes++
-		hashes[key] = append(hashes[key], fi)
-		stat.bytesHashed += fi.fi.Size()
-	}
-
-	for _, v := range hashes {
-		if len(v) > 1 {
-			return v, nil
-		}
-	}
-	return []file{}, nil
-}
-
-func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats) {
+func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats, fullFile bool) {
+	bufferSize := 4 << 10
+	buffer := make([]byte, bufferSize)
 	for fi := range jobs {
 		f, err := os.Open(fi.path)
 		if err != nil {
@@ -139,7 +114,40 @@ func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- fil
 			stat.mu.Unlock()
 			continue
 		}
+		h := sha256.New()
+		bytesRead, err := f.Read(buffer)
+		if err != nil {
+			log.Print(err)
+			stat.mu.Lock()
+			stat.errors++
+			stat.mu.Unlock()
+			continue
+		}
+		h.Write(buffer)
+		f.Close()
+		key := fmt.Sprintf("%x", h.Sum(nil))
+		stat.mu.Lock()
+		stat.hashes++
+		stat.bytesHashed += fi.fi.Size()
+		stat.mu.Unlock()
+		out := file{fi.fi, fi.path, key}
+		results <- out
+	}
+	wg.Done()
+}
 
+func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats, fullFile bool) {
+	bufferSize := 4 << 10
+	buffer := make([]byte, bufferSize)
+	for fi := range jobs {
+		f, err := os.Open(fi.path)
+		if err != nil {
+			log.Print(err)
+			stat.mu.Lock()
+			stat.errors++
+			stat.mu.Unlock()
+			continue
+		}
 		h := sha256.New()
 		if _, err := io.Copy(h, f); err != nil {
 			log.Print(err)
@@ -200,7 +208,7 @@ func findMatchingFiles(dir string, st *stats) {
 	var wg sync.WaitGroup
 	wg.Add(workers)
 	for w := 0; w < workers; w++ {
-		go hashWorker(w, &wg, jobs, results, st)
+		go shorHashWorker(w, &wg, jobs, results, st)
 	}
 
 	go func() {
@@ -223,6 +231,7 @@ func findMatchingFiles(dir string, st *stats) {
 	for r := range results {
 		hashToFiles[r.hash] = append(hashToFiles[r.hash], r)
 	}
+
 	for _, v := range hashToFiles {
 		if len(v) > 1 {
 			fmt.Println(v)
