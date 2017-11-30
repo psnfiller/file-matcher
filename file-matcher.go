@@ -27,8 +27,9 @@ type stats struct {
 	files            int
 	bytes            int64
 	hashes           int
+	shortHashes      int
 	bytesHashed      int64
-	bytesShortHashed int64
+	shortBytesHashed int
 	hashStart        time.Time
 	readDirStart     time.Time
 	readDirEnd       time.Time
@@ -41,8 +42,9 @@ func printStats(st *stats) {
 	fmt.Printf("errors %d\n", st.errors)
 	fmt.Printf("files %d\n", st.files)
 	fmt.Printf("hashes %d\n", st.hashes)
+	fmt.Printf("short hashes %d\n", st.shortHashes)
 	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
-	fmt.Printf("bytes short hashed %s\n", humanize.Bytes(uint64(st.bytesShortHashed)))
+	fmt.Printf("bytes short hashed %s\n", humanize.Bytes(uint64(st.shortBytesHashed)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
 	if !st.hashStart.IsZero() {
 		secs := time.Since(st.hashStart).Seconds()
@@ -70,7 +72,7 @@ type file struct {
 	path            string
 	hash            string
 	shortHash       string
-	shortHashLength uint64
+	shortHashLength int
 }
 
 func (f file) Size() int64 { return f.fi.Size() }
@@ -104,7 +106,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	return out, nil
 }
 
-func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats, fullFile bool) {
+func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats) {
 	bufferSize := 4 << 10
 	buffer := make([]byte, bufferSize)
 	for fi := range jobs {
@@ -129,8 +131,8 @@ func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<
 		f.Close()
 		key := fmt.Sprintf("%x", h.Sum(nil))
 		stat.mu.Lock()
-		stat.hashes++
-		stat.bytesHashed += fi.fi.Size()
+		stat.shortHashes++
+		stat.shortBytesHashed += bytesRead
 		stat.mu.Unlock()
 		out := file{}
 		out.fi = fi.fi
@@ -142,9 +144,7 @@ func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<
 	wg.Done()
 }
 
-func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats, fullFile bool) {
-	bufferSize := 4 << 10
-	buffer := make([]byte, bufferSize)
+func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats) {
 	for fi := range jobs {
 		f, err := os.Open(fi.path)
 		if err != nil {
@@ -168,7 +168,12 @@ func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- fil
 		stat.hashes++
 		stat.bytesHashed += fi.fi.Size()
 		stat.mu.Unlock()
-		out := file{fi.fi, fi.path, key}
+		out := file{}
+		out.fi = fi.fi
+		out.path = fi.path
+		out.shortHash = fi.shortHash
+		out.shortHashLength = fi.shortHashLength
+		out.hash = key
 		results <- out
 	}
 	wg.Done()
@@ -214,7 +219,7 @@ func findMatchingFiles(dir string, st *stats) {
 	var wg sync.WaitGroup
 	wg.Add(workers)
 	for w := 0; w < workers; w++ {
-		go shorHashWorker(w, &wg, jobs, results, st)
+		go shortHashWorker(w, &wg, jobs, results, st)
 	}
 
 	go func() {
@@ -243,5 +248,6 @@ func findMatchingFiles(dir string, st *stats) {
 			fmt.Println(v)
 		}
 	}
+
 	printStats(st)
 }
