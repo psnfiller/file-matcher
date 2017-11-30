@@ -127,8 +127,27 @@ func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<
 			stat.mu.Unlock()
 			continue
 		}
-		h.Write(buffer)
-		f.Close()
+
+		bytesWritten, err := h.Write(buffer)
+		if err != nil || bytesWritten != bytesRead {
+			if err != nil {
+				log.Print(err)
+			} else {
+				log.Printf("%d %d", bytesWritten, bytesRead)
+			}
+			stat.mu.Lock()
+			stat.errors++
+			err = f.Close()
+			if err != nil {
+				log.Print(err)
+			}
+			stat.mu.Unlock()
+			continue
+		}
+		err = f.Close()
+		if err != nil {
+			log.Print(err)
+		}
 		key := fmt.Sprintf("%x", h.Sum(nil))
 		stat.mu.Lock()
 		stat.shortHashes++
@@ -162,7 +181,9 @@ func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- fil
 			stat.mu.Unlock()
 			continue
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			log.Print(err)
+		}
 		key := fmt.Sprintf("%x", h.Sum(nil))
 		stat.mu.Lock()
 		stat.hashes++
@@ -186,7 +207,9 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		pprof.StartCPUProfile(f)
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Print(err)
+		}
 		defer pprof.StopCPUProfile()
 	}
 	st := stats{}
