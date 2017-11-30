@@ -50,7 +50,7 @@ func printStats(st *stats) {
 	fmt.Printf("short hashes %d\n", st.shortHashes)
 	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
 	fmt.Printf("bytes short hashed %s\n", humanize.Bytes(uint64(st.shortBytesHashed)))
-	fmt.Printf("bytes short saving%s\n", humanize.Bytes(uint64(st.shortBytesSaving)))
+	fmt.Printf("bytes short saving %s\n", humanize.Bytes(uint64(st.shortBytesSaving)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
 	fmt.Printf("matches %d (%2.0f%%)\n", st.matches, (float64(st.matches) / float64(st.files) * 100.0))
 	fmt.Printf("size matches %d (%2.0f%%)\n", st.sizeMatches, (float64(st.sizeMatches) / float64(st.files) * 100.0))
@@ -166,7 +166,7 @@ func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<
 		out := file{}
 		out.fi = fi.fi
 		out.path = fi.path
-		out.shortHash = key
+		out.hash = key
 		out.shortHashLength = bytesRead
 		results <- out
 	}
@@ -202,8 +202,6 @@ func hashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- fil
 		out := file{}
 		out.fi = fi.fi
 		out.path = fi.path
-		out.shortHash = fi.shortHash
-		out.shortHashLength = fi.shortHashLength
 		out.hash = key
 		results <- out
 	}
@@ -261,6 +259,8 @@ func findMatchingFilesByHash(files []file, st *stats, workerFunc worker) [][]fil
 	for _, v := range hashToFiles {
 		if len(v) > 1 {
 			out = append(out, v)
+		} else {
+			fmt.Printf(".")
 		}
 	}
 	return out
