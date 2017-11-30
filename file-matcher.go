@@ -36,6 +36,8 @@ type stats struct {
 	readDirStart     time.Time
 	readDirEnd       time.Time
 	matches          int
+	sizeMatches      int
+	shortHashMatches int
 }
 
 func printStats(st *stats) {
@@ -51,6 +53,8 @@ func printStats(st *stats) {
 	fmt.Printf("bytes short saving%s\n", humanize.Bytes(uint64(st.shortBytesSaving)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
 	fmt.Printf("matches %d (%2.0f%%)\n", st.matches, (float64(st.matches) / float64(st.files) * 100.0))
+	fmt.Printf("size matches %d (%2.0f%%)\n", st.sizeMatches, (float64(st.sizeMatches) / float64(st.files) * 100.0))
+	fmt.Printf("short hash matches %d (%2.0f%%)\n", st.shortHashMatches, (float64(st.shortHashMatches) / float64(st.files) * 100.0))
 	if !st.hashStart.IsZero() {
 		secs := time.Since(st.hashStart).Seconds()
 		throughput := float64(st.bytesHashed) / float64(secs)
@@ -277,6 +281,7 @@ func findMatchingFiles(dir string, st *stats) {
 	files := make([]file, 0)
 	for _, v := range sizeToFiles {
 		if len(v) > 1 {
+			st.sizeMatches += len(v)
 			files = append(files, v...)
 		}
 	}
@@ -285,6 +290,7 @@ func findMatchingFiles(dir string, st *stats) {
 	files = make([]file, 0)
 	for _, v := range shortFiles {
 		if len(v) > 1 {
+			st.shortHashMatches += len(v)
 			files = append(files, v...)
 		}
 	}
