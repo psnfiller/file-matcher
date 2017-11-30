@@ -199,6 +199,40 @@ func main() {
 	findMatchingFiles(flag.Args()[0], &st)
 }
 
+type worker func(int, *sync.WaitGroup, <-chan file, chan<- file, *stats)
+
+func findMatchingFilesByHash(files []file, st *stats, workerFunc worker) [][]file {
+	jobs := make(chan file, 100)
+	results := make(chan file, 100)
+	workers := 50
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := 0; w < workers; w++ {
+		go workerFunc(w, &wg, jobs, results, st)
+	}
+	go func() {
+		for _, v := range files {
+			jobs <- v
+		}
+		close(jobs)
+	}()
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+	hashToFiles := make(map[string][]file)
+	for r := range results {
+		hashToFiles[r.hash] = append(hashToFiles[r.hash], r)
+	}
+	out := make([][]file, 0, 0)
+	for _, v := range hashToFiles {
+		if len(v) > 1 {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 func findMatchingFiles(dir string, st *stats) {
 	st.readDirStart = time.Now()
 	fi, err := processDir(dir, st)
@@ -211,42 +245,26 @@ func findMatchingFiles(dir string, st *stats) {
 	for _, e := range fi {
 		sizeToFiles[e.Size()] = append(sizeToFiles[e.Size()], e)
 	}
+	files := make([]file, 0)
+	for _, v := range sizeToFiles {
+		if len(v) > 1 {
+			files = append(files, v...)
+		}
+	}
 
 	st.hashStart = time.Now()
-	jobs := make(chan file, 100)
-	results := make(chan file, 100)
-	workers := 50
-	var wg sync.WaitGroup
-	wg.Add(workers)
-	for w := 0; w < workers; w++ {
-		go shortHashWorker(w, &wg, jobs, results, st)
-	}
-
-	go func() {
-		for _, v := range sizeToFiles {
-			if len(v) <= 2 {
-				continue
-			}
-			for _, vv := range v {
-				jobs <- vv
-			}
-		}
-		close(jobs)
-	}()
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	hashToFiles := make(map[string][]file)
-	for r := range results {
-		hashToFiles[r.hash] = append(hashToFiles[r.hash], r)
-	}
-
-	for _, v := range hashToFiles {
+	shortFiles := findMatchingFilesByHash(files, st, shortHashWorker)
+	files = make([]file, 0)
+	for _, v := range shortFiles {
 		if len(v) > 1 {
-			fmt.Println(v)
+			files = append(files, v...)
 		}
+	}
+
+	matches := findMatchingFilesByHash(files, st, hashWorker)
+
+	for _, v := range matches {
+		fmt.Println(v)
 	}
 
 	printStats(st)
