@@ -35,6 +35,7 @@ type stats struct {
 	hashEnd          time.Time
 	readDirStart     time.Time
 	readDirEnd       time.Time
+	matches          int
 }
 
 func printStats(st *stats) {
@@ -49,6 +50,7 @@ func printStats(st *stats) {
 	fmt.Printf("bytes short hashed %s\n", humanize.Bytes(uint64(st.shortBytesHashed)))
 	fmt.Printf("bytes short saving%s\n", humanize.Bytes(uint64(st.shortBytesSaving)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
+	fmt.Printf("matches %d (%2.0f%%)\n", st.matches, (float64(st.matches) / float64(st.files) / 100.0))
 	if !st.hashStart.IsZero() {
 		secs := time.Since(st.hashStart).Seconds()
 		throughput := float64(st.bytesHashed) / float64(secs)
@@ -136,7 +138,7 @@ func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<
 			if err != nil {
 				log.Print(err)
 			} else {
-				log.Printf("%d %d", bytesWritten, bytesRead)
+				log.Printf("bytes written != bytes read %d %d", bytesWritten, bytesRead)
 			}
 			stat.mu.Lock()
 			stat.errors++
@@ -155,7 +157,7 @@ func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<
 		stat.mu.Lock()
 		stat.shortHashes++
 		stat.shortBytesHashed += bytesRead
-		stat.shortBytesSaving += (fi.Size - bytesRead)
+		stat.shortBytesSaving += (int(fi.Size()) - bytesRead)
 		stat.mu.Unlock()
 		out := file{}
 		out.fi = fi.fi
@@ -288,6 +290,7 @@ func findMatchingFiles(dir string, st *stats) {
 	}
 	matches := findMatchingFilesByHash(files, st, hashWorker)
 	for _, v := range matches {
+		st.matches += len(v)
 		fmt.Println(v)
 	}
 
