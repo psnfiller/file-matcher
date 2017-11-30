@@ -50,7 +50,7 @@ func printStats(st *stats) {
 	fmt.Printf("short hashes %d\n", st.shortHashes)
 	fmt.Printf("bytes %s\n", humanize.Bytes(uint64(st.bytes)))
 	fmt.Printf("bytes short hashed %s\n", humanize.Bytes(uint64(st.shortBytesHashed)))
-	fmt.Printf("bytes short saving %s\n", humanize.Bytes(uint64(st.shortBytesSaving)))
+	fmt.Printf("bytes short saving %s\n", humanize.Bytes(uint64(st.shortBytesSaving)-uint64(st.bytesHashed)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
 	fmt.Printf("matches %d (%2.0f%%)\n", st.matches, (float64(st.matches) / float64(st.files) * 100.0))
 	fmt.Printf("size matches %d (%2.0f%%)\n", st.sizeMatches, (float64(st.sizeMatches) / float64(st.files) * 100.0))
@@ -116,7 +116,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 }
 
 func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats) {
-	bufferSize := 4 << 10
+	bufferSize := 4 << 20
 	buffer := make([]byte, bufferSize)
 	for fi := range jobs {
 		f, err := os.Open(fi.path)
