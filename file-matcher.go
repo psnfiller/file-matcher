@@ -50,7 +50,7 @@ func printStats(st *stats) {
 	fmt.Printf("bytes short hashed %s\n", humanize.Bytes(uint64(st.shortBytesHashed)))
 	fmt.Printf("bytes short saving%s\n", humanize.Bytes(uint64(st.shortBytesSaving)))
 	fmt.Printf("bytes hashed %s\n", humanize.Bytes(uint64(st.bytesHashed)))
-	fmt.Printf("matches %d (%2.0f%%)\n", st.matches, (float64(st.matches) / float64(st.files) / 100.0))
+	fmt.Printf("matches %d (%2.0f%%)\n", st.matches, (float64(st.matches) / float64(st.files) * 100.0))
 	if !st.hashStart.IsZero() {
 		secs := time.Since(st.hashStart).Seconds()
 		throughput := float64(st.bytesHashed) / float64(secs)
@@ -133,7 +133,7 @@ func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<
 			continue
 		}
 
-		bytesWritten, err := h.Write(buffer)
+		bytesWritten, err := h.Write(buffer[:bytesRead])
 		if err != nil || bytesWritten != bytesRead {
 			if err != nil {
 				log.Print(err)
