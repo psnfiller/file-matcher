@@ -90,7 +90,7 @@ func processDirFast(dir string, stat *stats) ([]file, error) {
 	errors := make(chan error)
 	dirs := make(chan string)
 	files := make(chan file)
-	jobs := make(chan string, 10)
+	jobs := make(chan string, 1000000000)
 	done := make(chan int)
 
 	// start the workers
@@ -104,19 +104,20 @@ func processDirFast(dir string, stat *stats) ([]file, error) {
 	stat.readdirs++
 
 	outstanding := 1
+	var out []file
+	var err error
 	for {
-		fmt.Printf(".")
 		select {
-		case errors <- err:
+		case err = <-errors:
 			log.Print(err)
 			stat.errors++
-		case d :<- dirs:
+		case d := <-dirs:
 			jobs <- d
 			stat.readdirs++
 			outstanding++
 		case <-done:
 			outstanding--
-		case f :<- files:
+		case f := <-files:
 			stat.files++
 			stat.bytes += f.Size()
 			out = append(out, f)
@@ -127,11 +128,11 @@ func processDirFast(dir string, stat *stats) ([]file, error) {
 	}
 	close(jobs)
 	stat.mu.Unlock()
-	return out
+	return out, err
 }
 
 func readDirWorker(id int, jobs <-chan string, dirs chan<- string, files chan<- file, done chan<- int) {
-	for fi := range jobs {
+	for dir := range jobs {
 		fi, err := ioutil.ReadDir(dir)
 		if err != nil {
 			done <- id
