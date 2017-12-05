@@ -86,7 +86,7 @@ type file struct {
 
 func (f file) Size() int64 { return f.fi.Size() }
 
-func processDirFast(dir string, stat *stats) ([]file, error) {
+func processDir(dir string, stat *stats) ([]file, error) {
 	errors := make(chan error)
 	dirs := make(chan string)
 	files := make(chan file)
@@ -153,6 +153,7 @@ func readDirWorker(id int, jobs <-chan string, dirs chan<- string, files chan<- 
 	}
 }
 
+/*
 func processDir(dir string, stat *stats) ([]file, error) {
 	fi, err := ioutil.ReadDir(dir)
 	stat.readdirs++
@@ -182,6 +183,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	}
 	return out, nil
 }
+*/
 
 func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats) {
 	bufferSize := 4 << 20
@@ -336,7 +338,7 @@ func findMatchingFilesByHash(files []file, st *stats, workerFunc worker) [][]fil
 
 func findMatchingFiles(dir string, st *stats) {
 	st.readDirStart = time.Now()
-	fi, err := processDirFast(dir, st)
+	fi, err := processDir(dir, st)
 	if err != nil {
 		log.Fatal(err)
 	}
