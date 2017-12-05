@@ -90,12 +90,13 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	errors := make(chan error)
 	dirs := make(chan string)
 	files := make(chan file)
-	jobs := make(chan string, 1000000000)
+	//jobs := make(chan string, 1000000000)
+	jobs := make(chan string, 100)
 	done := make(chan int)
 
 	// start the workers
 	for i := 0; i < 10; i++ {
-		go readDirWorker(i, jobs, dirs, files, done)
+		go readDirWorker(i, jobs, dirs, files, done, errors)
 	}
 
 	stat.mu.Lock()
@@ -107,17 +108,22 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	var out []file
 	var err error
 	for {
+		fmt.Print(".")
 		select {
 		case err = <-errors:
+			fmt.Printf("error %v\n", err)
 			log.Print(err)
 			stat.errors++
 		case d := <-dirs:
+			fmt.Printf("dir %s\n", dir)
 			jobs <- d
 			stat.readdirs++
 			outstanding++
 		case <-done:
+			fmt.Printf("done \n")
 			outstanding--
 		case f := <-files:
+			fmt.Printf("file %v\n", f)
 			stat.files++
 			stat.bytes += f.Size()
 			out = append(out, f)
@@ -125,16 +131,20 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		if outstanding == 0 {
 			break
 		}
+		if outstanding < 0 {
+			panic("corrupt")
+		}
 	}
 	close(jobs)
 	stat.mu.Unlock()
 	return out, err
 }
 
-func readDirWorker(id int, jobs <-chan string, dirs chan<- string, files chan<- file, done chan<- int) {
+func readDirWorker(id int, jobs <-chan string, dirs chan<- string, files chan<- file, done chan<- int, errors chan<- error) {
 	for dir := range jobs {
 		fi, err := ioutil.ReadDir(dir)
 		if err != nil {
+			errors <- err
 			done <- id
 			continue
 		}
