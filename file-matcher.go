@@ -87,7 +87,7 @@ type file struct {
 func (f file) Size() int64 { return f.fi.Size() }
 
 func processDirFast(dir string, stat *stats) ([]file, error) {
-	errors := make(chan err)
+	errors := make(chan error)
 	dirs := make(chan string)
 	files := make(chan file)
 	jobs := make(chan string, 10)
@@ -96,7 +96,6 @@ func processDirFast(dir string, stat *stats) ([]file, error) {
 	// start the workers
 	for i := 0; i < 10; i++ {
 		go readDirWorker(i, jobs, dirs, files, done)
-
 	}
 
 	stat.mu.Lock()
@@ -106,17 +105,18 @@ func processDirFast(dir string, stat *stats) ([]file, error) {
 
 	outstanding := 1
 	for {
+		fmt.Printf(".")
 		select {
-		case err <- errors:
+		case errors <- err:
 			log.Print(err)
 			stat.errors++
-		case d <- dirs:
+		case d :<- dirs:
 			jobs <- d
 			stat.readdirs++
 			outstanding++
 		case <-done:
 			outstanding--
-		case f <- files:
+		case f :<- files:
 			stat.files++
 			stat.bytes += f.Size()
 			out = append(out, f)
