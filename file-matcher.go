@@ -86,6 +86,72 @@ type file struct {
 
 func (f file) Size() int64 { return f.fi.Size() }
 
+func processDirFast(dir string, stat *stats) ([]file, error) {
+	errors := make(chan err)
+	dirs := make(chan string)
+	files := make(chan file)
+	jobs := make(chan string, 10)
+	done := make(chan int)
+
+	// start the workers
+	for i := 0; i < 10; i++ {
+		go readDirWorker(i, jobs, dirs, files, done)
+
+	}
+
+	stat.mu.Lock()
+	// first dir
+	jobs <- dir
+	stat.readdirs++
+
+	outstanding := 1
+	for {
+		select {
+		case err <- errors:
+			log.Print(err)
+			stat.errors++
+		case d <- dirs:
+			jobs <- d
+			stat.readdirs++
+			outstanding++
+		case <-done:
+			outstanding--
+		case f <- files:
+			stat.files++
+			stat.bytes += f.Size()
+			out = append(out, f)
+		}
+		if outstanding == 0 {
+			break
+		}
+	}
+	close(jobs)
+	stat.mu.Unlock()
+	return out
+}
+
+func readDirWorker(id int, jobs <-chan string, dirs chan<- string, files chan<- file, done chan<- int) {
+	for fi := range jobs {
+		fi, err := ioutil.ReadDir(dir)
+		if err != nil {
+			done <- id
+			continue
+		}
+		for _, e := range fi {
+			p := path.Join(dir, e.Name())
+			if e.IsDir() {
+				dirs <- p
+			} else if e.Mode().IsRegular() && e.Size() > 0 {
+				x := file{}
+				x.fi = e
+				x.path = p
+				files <- x
+			}
+		}
+		done <- id
+	}
+}
+
 func processDir(dir string, stat *stats) ([]file, error) {
 	fi, err := ioutil.ReadDir(dir)
 	stat.readdirs++
@@ -93,6 +159,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		stat.errors++
 		return []file{}, err
 	}
+
 	out := make([]file, 0, len(fi))
 	for _, e := range fi {
 		p := path.Join(dir, e.Name())
@@ -268,7 +335,7 @@ func findMatchingFilesByHash(files []file, st *stats, workerFunc worker) [][]fil
 
 func findMatchingFiles(dir string, st *stats) {
 	st.readDirStart = time.Now()
-	fi, err := processDir(dir, st)
+	fi, err := processDirFast(dir, st)
 	if err != nil {
 		log.Fatal(err)
 	}
