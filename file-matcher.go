@@ -91,7 +91,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	dirs := make(chan string)
 	files := make(chan file)
 	//jobs := make(chan string, 1000000000)
-	jobs := make(chan string, 100)
+	jobs := make(chan string, 1)
 	done := make(chan int)
 
 	// start the workers
@@ -107,6 +107,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	outstanding := 1
 	var out []file
 	var err error
+	var buffer []string
 	for {
 		fmt.Print(".")
 		select {
@@ -116,9 +117,14 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			stat.errors++
 		case d := <-dirs:
 			fmt.Printf("dir %s\n", dir)
-			jobs <- d
+
 			stat.readdirs++
-			outstanding++
+			select {
+			case jobs <- d:
+				outstanding++
+			default:
+				buffer = append(buffer, d)
+			}
 		case <-done:
 			fmt.Printf("done \n")
 			outstanding--
@@ -128,6 +134,18 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			stat.bytes += f.Size()
 			out = append(out, f)
 		}
+		mark := len(buffer)
+		for i, d := range buffer {
+			select {
+			case jobs <- d:
+				outstanding++
+			default:
+				mark = i
+				break
+			}
+		}
+		buffer = buffer[mark:]
+
 		if outstanding == 0 {
 			break
 		}
