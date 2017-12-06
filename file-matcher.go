@@ -18,7 +18,10 @@ import (
 
 import _ "net/http/pprof"
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var (
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	statTimer = flag.Duration("time_for_stats", time.Second * 60, "")
+) 
 
 type stats struct {
 	mu               sync.Mutex
@@ -109,15 +112,11 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	var err error
 	var buffer []string
 	for {
-		fmt.Print(".")
 		select {
 		case err = <-errors:
-			fmt.Printf("error %v\n", err)
 			log.Print(err)
 			stat.errors++
 		case d := <-dirs:
-			fmt.Printf("dir %s\n", dir)
-
 			stat.readdirs++
 			select {
 			case jobs <- d:
@@ -126,10 +125,8 @@ func processDir(dir string, stat *stats) ([]file, error) {
 				buffer = append(buffer, d)
 			}
 		case <-done:
-			fmt.Printf("done \n")
 			outstanding--
 		case f := <-files:
-			fmt.Printf("file %v\n", f)
 			stat.files++
 			stat.bytes += f.Size()
 			out = append(out, f)
@@ -321,7 +318,7 @@ func main() {
 	st := stats{}
 	go func() {
 		for {
-			time.Sleep(time.Second)
+			time.Sleep(*statTimer)
 			printStats(&st)
 		}
 	}()
@@ -357,8 +354,6 @@ func findMatchingFilesByHash(files []file, st *stats, workerFunc worker) [][]fil
 	for _, v := range hashToFiles {
 		if len(v) > 1 {
 			out = append(out, v)
-		} else {
-			fmt.Printf(".")
 		}
 	}
 	return out
