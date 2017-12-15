@@ -89,7 +89,7 @@ func (f file) Size() int64 { return f.fi.Size() }
 func processDir(dir string, stat *stats) ([]file, error) {
 	errors := make(chan error)
 	dirs := make(chan []string)
-	files := make(chan file)
+	files := make(chan []file)
 	//jobs := make(chan string, 1000000000)
 	jobs := make(chan string, 12)
 	done := make(chan int, 1)
@@ -131,10 +131,12 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			}
 		case <-done:
 			outstanding--
-		case f := <-files:
-			stat.files++
-			stat.bytes += f.Size()
-			out = append(out, f)
+		case fs := <-files:
+			for _, f := range fs {
+				stat.files++
+				stat.bytes += f.Size()
+				out = append(out, f)
+			}
 		}
 		/*
 			mark := len(buffer)
@@ -162,7 +164,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	return out, err
 }
 
-func readDirWorker(id int, jobs <-chan string, dirs chan<- []string, files chan<- file, done chan<- int, errors chan<- error) {
+func readDirWorker(id int, jobs <-chan string, dirs chan<- []string, files chan<- []file, done chan<- int, errors chan<- error) {
 	for dir := range jobs {
 		fi, err := ioutil.ReadDir(dir)
 		if err != nil {
@@ -171,6 +173,7 @@ func readDirWorker(id int, jobs <-chan string, dirs chan<- []string, files chan<
 			continue
 		}
 		var ds []string
+		var files []file
 		for _, e := range fi {
 			p := path.Join(dir, e.Name())
 			if e.IsDir() {
@@ -179,11 +182,14 @@ func readDirWorker(id int, jobs <-chan string, dirs chan<- []string, files chan<
 				x := file{}
 				x.fi = e
 				x.path = p
-				files <- x
+				files = append(files, x)
 			}
 		}
-		if dirs {
+		if len(ds) > 0 {
 			dirs <- ds
+		}
+		if len(files) > 0 {
+			fileChan <- files
 		}
 		done <- id
 	}
