@@ -130,7 +130,7 @@ func TestProcessDir(t *testing.T) {
 		t.Errorf("message")
 	}
 
-	d := path.Join(tmpDir, "d")
+	d = path.Join(tmpDir, "d")
 	err = os.Mkdir(d, os.FileMode(0766))
 	if err != nil {
 		t.Errorf("message")
