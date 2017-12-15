@@ -91,8 +91,8 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	dirs := make(chan string)
 	files := make(chan file)
 	//jobs := make(chan string, 1000000000)
-	jobs := make(chan string, 10)
-	done := make(chan int, 10)
+	jobs := make(chan string, 1)
+	done := make(chan int, 1)
 
 	// start the workers
 	for i := 0; i < 10; i++ {
@@ -107,7 +107,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	outstanding := 1
 	var out []file
 	var err error
-	var buffer []string
+	//var buffer []string
 	for {
 		select {
 		case err = <-errors:
