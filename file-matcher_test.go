@@ -139,7 +139,7 @@ func TestProcessDir2(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 	// ten files in subdir.
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		dname := fmt.Sprintf("d%d", i)
 		d := path.Join(tmpDir, dname)
 		fmt.Println(d)
@@ -148,7 +148,7 @@ func TestProcessDir2(t *testing.T) {
 			t.Errorf("failed to createdir %v", err)
 		}
 		// ten files in subdir.
-		for j := 0; j < 10; j++ {
+		for j := 0; j < 100; j++ {
 			f, err := ioutil.TempFile(d, "f")
 			if err != nil {
 				t.Errorf("tmpfile %s", err)
@@ -162,7 +162,7 @@ func TestProcessDir2(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
-	if len(files) != 1000*1000 {
+	if len(files) != 10*10 {
 		t.Errorf("%v", files)
 	}
 
