@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -51,7 +50,6 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("message")
 	}
-	fmt.Println("d")
 
 	// single, file.
 	f, err = ioutil.TempFile(tmpDir, "f")

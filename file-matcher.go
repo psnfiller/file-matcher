@@ -109,14 +109,12 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	var err error
 	var buffer []string
 	for {
-		fmt.Print(".")
 		select {
 		case err = <-errors:
 			fmt.Printf("error %v\n", err)
 			log.Print(err)
 			stat.errors++
 		case d := <-dirs:
-			fmt.Printf("dir %s\n", dir)
 
 			stat.readdirs++
 			select {
@@ -126,10 +124,8 @@ func processDir(dir string, stat *stats) ([]file, error) {
 				buffer = append(buffer, d)
 			}
 		case <-done:
-			fmt.Printf("done \n")
 			outstanding--
 		case f := <-files:
-			fmt.Printf("file %v\n", f)
 			stat.files++
 			stat.bytes += f.Size()
 			out = append(out, f)
