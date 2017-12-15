@@ -148,7 +148,7 @@ func TestProcessDir2(t *testing.T) {
 			t.Errorf("failed to createdir %v", err)
 		}
 		// ten files in subdir.
-		for j := 0; j < 10; i++ {
+		for j := 0; j < 10; j++ {
 			f, err := ioutil.TempFile(d, "f")
 			if err != nil {
 				t.Errorf("tmpfile %s", err)
