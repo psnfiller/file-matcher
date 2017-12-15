@@ -27,7 +27,6 @@ func TestProcessDir(t *testing.T) {
 	if st != want {
 		t.Errorf("%v", st)
 	}
-	fmt.Println("non")
 
 	// single, non-empty, file.
 	f, err := ioutil.TempFile(tmpDir, "f")
@@ -73,7 +72,6 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("message")
 	}
-	fmt.Println("d")
 
 	// ten files in the same dir
 	var tmpfiles []string
@@ -101,7 +99,6 @@ func TestProcessDir(t *testing.T) {
 			t.Errorf("remove file, %s", err)
 		}
 	}
-	fmt.Println("d")
 
 	// sub dir
 
@@ -126,7 +123,6 @@ func TestProcessDir(t *testing.T) {
 	if len(files) != 10 {
 		t.Errorf("%v", files)
 	}
-	fmt.Println("d")
 
 	// cleanup
 	err = os.RemoveAll(tmpDir)
