@@ -91,7 +91,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	dirs := make(chan string)
 	files := make(chan file)
 	//jobs := make(chan string, 1000000000)
-	jobs := make(chan string, 1)
+	jobs := make(chan string, 12)
 	done := make(chan int, 1)
 
 	// start the workers
