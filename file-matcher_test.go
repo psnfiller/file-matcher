@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -105,6 +106,7 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("message")
 	}
+
 	// ten files in subdir.
 	for i := 0; i < 1000; i++ {
 		f, err := ioutil.TempFile(d, "f")
@@ -127,4 +129,40 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("message")
 	}
+
+	d := path.Join(tmpDir, "d")
+	err = os.Mkdir(d, os.FileMode(0766))
+	if err != nil {
+		t.Errorf("message")
+	}
+	// ten files in subdir.
+	for i := 0; i < 1000; i++ {
+		dname := fmt.Sprintf("d%d", i)
+		d := path.Join(tmpDir, dname)
+		err = os.Mkdir(d, os.FileMode(0766))
+		if err != nil {
+			t.Errorf("message")
+		}
+		// ten files in subdir.
+		f, err := ioutil.TempFile(d, "f")
+		if err != nil {
+			t.Errorf("tmpfile %s", err)
+		}
+		f.WriteString("8")
+		f.Close()
+	}
+	files, err = processDir(tmpDir, &st)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+	if len(files) != 1000 {
+		t.Errorf("%v", files)
+	}
+
+	// cleanup
+	err = os.RemoveAll(tmpDir)
+	if err != nil {
+		t.Errorf("message")
+	}
+
 }
