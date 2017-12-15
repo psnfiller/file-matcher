@@ -130,6 +130,7 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("message")
 	}
+}
 
 func TestProcessDir2(t *testing.T) {
 	st := stats{}
