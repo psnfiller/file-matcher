@@ -106,7 +106,7 @@ func TestProcessDir(t *testing.T) {
 		t.Errorf("message")
 	}
 	// ten files in subdir.
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1000; i++ {
 		f, err := ioutil.TempFile(d, "f")
 		if err != nil {
 			t.Errorf("tmpfile %s", err)
@@ -118,7 +118,7 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
-	if len(files) != 10 {
+	if len(files) != 1000 {
 		t.Errorf("%v", files)
 	}
 
