@@ -14,6 +14,7 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("%v", err)
 	}
+
 	// empty dir
 	files, err := processDir(tmpDir, &st)
 	if err != nil {
@@ -130,10 +131,11 @@ func TestProcessDir(t *testing.T) {
 		t.Errorf("message")
 	}
 
-	d = path.Join(tmpDir, "d")
-	err = os.Mkdir(d, os.FileMode(0766))
+func TestProcessDir2(t *testing.T) {
+	st := stats{}
+	tmpDir, err := ioutil.TempDir(os.Getenv("TMPDIR"), "file-matcher-test")
 	if err != nil {
-		t.Errorf("message")
+		t.Errorf("%v", err)
 	}
 	// ten files in subdir.
 	for i := 0; i < 1000; i++ {
@@ -141,7 +143,7 @@ func TestProcessDir(t *testing.T) {
 		d := path.Join(tmpDir, dname)
 		err = os.Mkdir(d, os.FileMode(0766))
 		if err != nil {
-			t.Errorf("message")
+			t.Errorf("failed to createdir %v", err)
 		}
 		// ten files in subdir.
 		f, err := ioutil.TempFile(d, "f")
