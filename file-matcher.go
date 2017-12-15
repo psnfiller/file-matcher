@@ -125,6 +125,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 					buffer = append(buffer, d)
 				}
 			*/
+			outstanding++
 			jobs <- d
 		case <-done:
 			outstanding--
@@ -133,17 +134,19 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			stat.bytes += f.Size()
 			out = append(out, f)
 		}
-		mark := len(buffer)
-		for i, d := range buffer {
-			select {
-			case jobs <- d:
-				outstanding++
-			default:
-				mark = i
-				break
+		/*
+			mark := len(buffer)
+			for i, d := range buffer {
+				select {
+				case jobs <- d:
+					outstanding++
+				default:
+					mark = i
+					break
+				}
 			}
-		}
-		buffer = buffer[mark:]
+			buffer = buffer[mark:]
+		*/
 
 		if outstanding == 0 {
 			break
