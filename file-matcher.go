@@ -133,6 +133,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		for i, d := range buffer {
 			select {
 			case jobs <- d:
+				fmt.Println(".")
 				outstanding++
 			default:
 				mark = i

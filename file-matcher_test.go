@@ -142,7 +142,6 @@ func TestProcessDir2(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		dname := fmt.Sprintf("d%d", i)
 		d := path.Join(tmpDir, dname)
-		fmt.Println(d)
 		err = os.Mkdir(d, os.FileMode(0766))
 		if err != nil {
 			t.Errorf("failed to createdir %v", err)
@@ -157,7 +156,6 @@ func TestProcessDir2(t *testing.T) {
 			f.Close()
 		}
 	}
-	fmt.Println("srart")
 	files, err := processDir(tmpDir, &st)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
