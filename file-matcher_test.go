@@ -163,7 +163,7 @@ func TestProcessDir2(t *testing.T) {
 		t.Errorf("unexpected error %v", err)
 	}
 	if len(files) != 100*100 {
-		t.Errorf("%v", files)
+		t.Errorf("expected %d, got %d", 100*100, len(files))
 	}
 
 	// cleanup
