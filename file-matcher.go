@@ -142,6 +142,9 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		buffer = buffer[mark:]
 
 		if outstanding == 0 {
+			if len(buffer) > 0 {
+				panic("woops")
+			}
 			break
 		}
 		if outstanding < 0 {
