@@ -152,6 +152,10 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		if outstanding < 0 {
 			panic("corrupt")
 		}
+		if outstanding != len(buffer)+workers {
+			panic("corrupt")
+		}
+
 	}
 	close(jobs)
 	stat.mu.Unlock()
