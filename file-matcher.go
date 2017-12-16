@@ -87,15 +87,15 @@ type file struct {
 func (f file) Size() int64 { return f.fi.Size() }
 
 func processDir(dir string, stat *stats) ([]file, error) {
+	workers := 10
 	errors := make(chan error)
 	dirs := make(chan string)
 	files := make(chan file)
-	//jobs := make(chan string, 1000000000)
-	jobs := make(chan string, 12)
-	done := make(chan int, 1)
+	jobs := make(chan string, workers)
+	done := make(chan int, workers)
 
 	// start the workers
-	for i := 0; i < 10; i++ {
+	for i := 0; i < workers; i++ {
 		go readDirWorker(i, jobs, dirs, files, done, errors)
 	}
 
