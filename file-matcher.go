@@ -152,7 +152,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		if outstanding < 0 {
 			panic("corrupt")
 		}
-		if outstanding != len(buffer)+workers {
+		if outstanding > len(buffer)+workers {
 			panic("corrupt")
 		}
 
