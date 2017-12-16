@@ -162,7 +162,7 @@ func TestProcessDir2(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
-	if len(files) != 10*10 {
+	if len(files) != 100*100 {
 		t.Errorf("%v", files)
 	}
 
