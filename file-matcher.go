@@ -107,7 +107,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	outstanding := 1
 	var out []file
 	var err error
-	//var buffer []string
+	var buffer []string
 	for {
 		select {
 		case err = <-errors:
@@ -125,11 +125,9 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		case <-done:
 			outstanding--
 		case f := <-files:
-			for _, f := range fs {
-				stat.files++
-				stat.bytes += f.Size()
-				out = append(out, f)
-			}
+			stat.files++
+			stat.bytes += f.Size()
+			out = append(out, f)
 		}
 		mark := len(buffer)
 		for i, d := range buffer {
