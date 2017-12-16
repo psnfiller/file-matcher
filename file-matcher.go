@@ -140,7 +140,6 @@ func processDir(dir string, stat *stats) ([]file, error) {
 				break
 			}
 		}
-		fmt.Println("x")
 		buffer = buffer[mark:]
 
 		if outstanding == 0 {
