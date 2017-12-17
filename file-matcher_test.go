@@ -156,7 +156,7 @@ func TestProcessDirError(t *testing.T) {
 		t.Errorf("expected %d, got %d", 0, len(files))
 	}
 	if st.errors != 1 {
-		t.Errorf()
+		t.Errorf("errors")
 	}
 
 	// cleanup
