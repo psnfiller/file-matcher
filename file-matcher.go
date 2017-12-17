@@ -132,13 +132,14 @@ func processDir(dir string, stat *stats) ([]file, error) {
 				fmt.Println("send", d)
 				outstanding++
 			default:
-				mark = i
+				mark = i - 1
 				if outstanding < len(jobs) {
 					panic("")
 				}
 				break
 			}
 		}
+
 		if len(buffer) > 0 {
 			fmt.Println(buffer, mark)
 			buffer = buffer[mark:]
