@@ -146,9 +146,11 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			panic("corrupt")
 		}
 	}
+	fmt.Println(len(dirs), len(files), len(jobs))
 	close(jobs)
+	close(dirs)
+	close(files)
 	stat.mu.Unlock()
-	fmt.Println(len(dirs), len(files))
 	return out, err
 }
 
