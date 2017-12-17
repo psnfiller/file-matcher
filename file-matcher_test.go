@@ -166,9 +166,11 @@ func TestProcessDir2(t *testing.T) {
 	}
 
 	// cleanup
-	err = os.RemoveAll(tmpDir)
-	if err != nil {
-		t.Errorf("message")
-	}
+	/*
+		err = os.RemoveAll(tmpDir)
+		if err != nil {
+			t.Errorf("message")
+		}
+	*/
 
 }
