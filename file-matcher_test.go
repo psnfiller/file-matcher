@@ -137,7 +137,7 @@ func TestProcessDirError(t *testing.T) {
 	if err != nil {
 		t.Errorf("%v", err)
 	}
-	f, err := ioutil.TempFile(d, "f")
+	f, err := ioutil.TempFile(tmpDir, "f")
 	if err != nil {
 		t.Errorf("tmpfile %s", err)
 	}
