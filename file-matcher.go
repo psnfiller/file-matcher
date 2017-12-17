@@ -131,6 +131,9 @@ func processDir(dir string, stat *stats) ([]file, error) {
 				outstanding++
 			default:
 				mark = i
+				if outstanding < len(jobs) {
+					panic()
+				}
 				break
 			}
 		}
