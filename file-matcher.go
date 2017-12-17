@@ -123,6 +123,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			stat.files++
 			stat.bytes += f.Size()
 			out = append(out, f)
+			continue
 		}
 		mark := len(buffer)
 		for i, d := range buffer {
@@ -139,6 +140,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			}
 		}
 		if len(buffer) > 0 {
+			fmt.Println(buffer, mark)
 			buffer = buffer[mark:]
 		}
 
