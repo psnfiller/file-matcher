@@ -153,7 +153,7 @@ func TestProcessDirError(t *testing.T) {
 		t.Errorf("unexpected error %v", err)
 	}
 	if len(files) != 0 {
-		t.Errorf("expected %d, got %d", 0, len(files))
+		t.Errorf("files: expected %d, got %d", 0, len(files))
 	}
 	if st.errors != 1 {
 		t.Errorf("errors")
