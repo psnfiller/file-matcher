@@ -137,13 +137,8 @@ func TestProcessDirError(t *testing.T) {
 	if err != nil {
 		t.Errorf("%v", err)
 	}
-	f, err := ioutil.TempFile(tmpDir, "f")
-	if err != nil {
-		t.Errorf("tmpfile %s", err)
-	}
-	os.Chmod(f.Name(), 0000)
-	f.WriteString("8")
-	f.Close()
+	d := path.Join(tmpDir, "d")
+	err = os.Mkdir(d, os.FileMode(0000))
 	if err != nil {
 		t.Errorf("chmod %s", err)
 	}
