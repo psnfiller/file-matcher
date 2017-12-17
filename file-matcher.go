@@ -128,6 +128,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		for i, d := range buffer {
 			select {
 			case jobs <- d:
+				fmt.Println(d)
 				outstanding++
 			default:
 				mark = i
@@ -138,9 +139,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			}
 		}
 		if len(buffer) > 0 {
-			fmt.Println(buffer)
 			buffer = buffer[mark:]
-			fmt.Println(buffer)
 		}
 
 		if outstanding == 0 {
