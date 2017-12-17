@@ -111,7 +111,6 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	for {
 		select {
 		case err = <-errors:
-			fmt.Printf("error %v\n", err)
 			log.Print(err)
 			stat.errors++
 		case d := <-dirs:
@@ -128,17 +127,11 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		mark := len(buffer)
 		for i, d := range buffer {
 			var full bool
-
 			select {
 			case jobs <- d:
-				fmt.Println("send", d)
 				outstanding++
 			default:
-				fmt.Println("def")
 				full = true
-				if outstanding < len(jobs) {
-					panic("")
-				}
 			}
 			if full {
 				mark = i
@@ -147,21 +140,13 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		}
 
 		if len(buffer) > 0 {
-			fmt.Println(buffer, mark)
 			buffer = buffer[mark:]
 		}
 
 		if outstanding == 0 {
-			if len(buffer) > 0 {
-				panic("woops")
-			}
 			break
 		}
-		if outstanding < 0 {
-			panic("corrupt")
-		}
 	}
-	fmt.Println(len(dirs), len(files), len(jobs))
 	close(jobs)
 	close(dirs)
 	close(files)
