@@ -116,12 +116,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 			stat.errors++
 		case d := <-dirs:
 			stat.readdirs++
-			select {
-			case jobs <- d:
-				outstanding++
-			default:
-				buffer = append(buffer, d)
-			}
+			buffer = append(buffer, d)
 		case <-done:
 			outstanding--
 		case f := <-files:
@@ -133,11 +128,9 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		for i, d := range buffer {
 			select {
 			case jobs <- d:
-				fmt.Println(".")
 				outstanding++
 			default:
 				mark = i
-				fmt.Println("x")
 				break
 			}
 		}
@@ -152,13 +145,10 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		if outstanding < 0 {
 			panic("corrupt")
 		}
-		if outstanding > len(buffer)+workers {
-			panic("corrupt")
-		}
-
 	}
 	close(jobs)
 	stat.mu.Unlock()
+	fmt.Println(len(dirs), len(files))
 	return out, err
 }
 

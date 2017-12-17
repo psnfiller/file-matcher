@@ -135,6 +135,7 @@ func TestProcessDir(t *testing.T) {
 func TestProcessDir2(t *testing.T) {
 	st := stats{}
 	tmpDir, err := ioutil.TempDir(os.Getenv("TMPDIR"), "file-matcher-test")
+	fmt.Println(tmpDir)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
