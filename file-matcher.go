@@ -177,38 +177,6 @@ func readDirWorker(id int, jobs <-chan string, dirs chan<- string, fileChan chan
 	}
 }
 
-/*
-func processDir(dir string, stat *stats) ([]file, error) {
-	fi, err := ioutil.ReadDir(dir)
-	stat.readdirs++
-	if err != nil {
-		stat.errors++
-		return []file{}, err
-	}
-
-	out := make([]file, 0, len(fi))
-	for _, e := range fi {
-		p := path.Join(dir, e.Name())
-		if e.IsDir() {
-			x, err := processDir(p, stat)
-			out = append(out, x...)
-			if err != nil {
-				log.Print(err)
-			}
-		} else if e.Mode().IsRegular() && e.Size() > 0 {
-			stat.files++
-			stat.bytes += e.Size()
-			x := file{}
-			x.fi = e
-			x.path = p
-			out = append(out, x)
-		}
-
-	}
-	return out, nil
-}
-*/
-
 func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats) {
 	bufferSize := 4 << 20
 	buffer := make([]byte, bufferSize)

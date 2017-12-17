@@ -131,8 +131,41 @@ func TestProcessDir(t *testing.T) {
 		t.Errorf("message")
 	}
 }
+func TestProcessDirError(t *testing.T) {
+	st := stats{}
+	tmpDir, err := ioutil.TempDir(os.Getenv("TMPDIR"), "file-matcher-test")
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	f, err := ioutil.TempFile(d, "f")
+	if err != nil {
+		t.Errorf("tmpfile %s", err)
+	}
+	os.Chmod(f.Name(), 0000)
+	f.WriteString("8")
+	f.Close()
+	if err != nil {
+		t.Errorf("chmod %s", err)
+	}
 
-func TestProcessDir2(t *testing.T) {
+	files, err := processDir(tmpDir, &st)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("expected %d, got %d", 0, len(files))
+	}
+	if st.errors != 1 {
+		t.Errorf()
+	}
+
+	// cleanup
+	err = os.RemoveAll(tmpDir)
+	if err != nil {
+		t.Errorf("message")
+	}
+}
+func TestProcessDirStress(t *testing.T) {
 	st := stats{}
 	tmpDir, err := ioutil.TempDir(os.Getenv("TMPDIR"), "file-matcher-test")
 	fmt.Println(tmpDir)
@@ -164,11 +197,9 @@ func TestProcessDir2(t *testing.T) {
 	if len(files) != 100*100 {
 		t.Errorf("expected %d, got %d", 100*100, len(files))
 	}
-
 	// cleanup
 	err = os.RemoveAll(tmpDir)
 	if err != nil {
 		t.Errorf("message")
 	}
-
 }
