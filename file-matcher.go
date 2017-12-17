@@ -128,6 +128,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		for i, d := range buffer {
 			select {
 			case jobs <- d:
+				fmt.Println(d)
 				outstanding++
 			default:
 				mark = i
@@ -168,7 +169,6 @@ func readDirWorker(id int, jobs <-chan string, dirs chan<- string, fileChan chan
 		for _, e := range fi {
 			p := path.Join(dir, e.Name())
 			if e.IsDir() {
-				fmt.Println(e.Name())
 				dirs <- p
 			} else if e.Mode().IsRegular() && e.Size() > 0 {
 				x := file{}
