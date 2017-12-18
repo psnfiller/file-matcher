@@ -14,6 +14,7 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("%v", err)
 	}
+
 	// empty dir
 	files, err := processDir(tmpDir, &st)
 	if err != nil {
@@ -27,7 +28,6 @@ func TestProcessDir(t *testing.T) {
 	if st != want {
 		t.Errorf("%v", st)
 	}
-	fmt.Println("non")
 
 	// single, non-empty, file.
 	f, err := ioutil.TempFile(tmpDir, "f")
@@ -52,7 +52,6 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("message")
 	}
-	fmt.Println("d")
 
 	// single, file.
 	f, err = ioutil.TempFile(tmpDir, "f")
@@ -73,7 +72,6 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("message")
 	}
-	fmt.Println("d")
 
 	// ten files in the same dir
 	var tmpfiles []string
@@ -101,7 +99,6 @@ func TestProcessDir(t *testing.T) {
 			t.Errorf("remove file, %s", err)
 		}
 	}
-	fmt.Println("d")
 
 	// sub dir
 
@@ -110,8 +107,9 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("message")
 	}
+
 	// ten files in subdir.
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1000; i++ {
 		f, err := ioutil.TempFile(d, "f")
 		if err != nil {
 			t.Errorf("tmpfile %s", err)
@@ -123,11 +121,77 @@ func TestProcessDir(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
-	if len(files) != 10 {
+	if len(files) != 1000 {
 		t.Errorf("%v", files)
 	}
-	fmt.Println("d")
 
+	// cleanup
+	err = os.RemoveAll(tmpDir)
+	if err != nil {
+		t.Errorf("message")
+	}
+}
+func TestProcessDirError(t *testing.T) {
+	st := stats{}
+	tmpDir, err := ioutil.TempDir(os.Getenv("TMPDIR"), "file-matcher-test")
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	d := path.Join(tmpDir, "d")
+	err = os.Mkdir(d, os.FileMode(0000))
+	if err != nil {
+		t.Errorf("chmod %s", err)
+	}
+
+	files, err := processDir(tmpDir, &st)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("files: expected %d, got %d", 0, len(files))
+	}
+	if st.errors != 1 {
+		t.Errorf("errors")
+	}
+
+	// cleanup
+	err = os.RemoveAll(tmpDir)
+	if err != nil {
+		t.Errorf("message")
+	}
+}
+func TestProcessDirStress(t *testing.T) {
+	st := stats{}
+	tmpDir, err := ioutil.TempDir(os.Getenv("TMPDIR"), "file-matcher-test")
+	fmt.Println(tmpDir)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	// ten files in subdir.
+	for i := 0; i < 100; i++ {
+		dname := fmt.Sprintf("d%d", i)
+		d := path.Join(tmpDir, dname)
+		err = os.Mkdir(d, os.FileMode(0766))
+		if err != nil {
+			t.Errorf("failed to createdir %v", err)
+		}
+		// ten files in subdir.
+		for j := 0; j < 100; j++ {
+			f, err := ioutil.TempFile(d, "f")
+			if err != nil {
+				t.Errorf("tmpfile %s", err)
+			}
+			f.WriteString("8")
+			f.Close()
+		}
+	}
+	files, err := processDir(tmpDir, &st)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+	if len(files) != 100*100 {
+		t.Errorf("expected %d, got %d", 100*100, len(files))
+	}
 	// cleanup
 	err = os.RemoveAll(tmpDir)
 	if err != nil {

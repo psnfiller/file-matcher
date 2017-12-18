@@ -90,15 +90,15 @@ type file struct {
 func (f file) Size() int64 { return f.fi.Size() }
 
 func processDir(dir string, stat *stats) ([]file, error) {
+	workers := 10
 	errors := make(chan error)
 	dirs := make(chan string)
 	files := make(chan file)
-	//jobs := make(chan string, 1000000000)
-	jobs := make(chan string, 1)
-	done := make(chan int)
+	jobs := make(chan string, workers)
+	done := make(chan int, workers)
 
 	// start the workers
-	for i := 0; i < 10; i++ {
+	for i := 0; i < workers; i++ {
 		go readDirWorker(i, jobs, dirs, files, done, errors)
 	}
 
@@ -109,53 +109,54 @@ func processDir(dir string, stat *stats) ([]file, error) {
 
 	outstanding := 1
 	var out []file
-	var err error
 	var buffer []string
 	for {
 		select {
-		case err = <-errors:
+		case err := <-errors:
 			log.Print(err)
 			stat.errors++
 		case d := <-dirs:
 			stat.readdirs++
-			select {
-			case jobs <- d:
-				outstanding++
-			default:
-				buffer = append(buffer, d)
-			}
+			buffer = append(buffer, d)
 		case <-done:
 			outstanding--
 		case f := <-files:
 			stat.files++
 			stat.bytes += f.Size()
 			out = append(out, f)
+			continue
 		}
 		mark := len(buffer)
 		for i, d := range buffer {
+			var full bool
 			select {
 			case jobs <- d:
 				outstanding++
 			default:
+				full = true
+			}
+			if full {
 				mark = i
 				break
 			}
 		}
-		buffer = buffer[mark:]
+
+		if len(buffer) > 0 {
+			buffer = buffer[mark:]
+		}
 
 		if outstanding == 0 {
 			break
 		}
-		if outstanding < 0 {
-			panic("corrupt")
-		}
 	}
 	close(jobs)
+	close(dirs)
+	close(files)
 	stat.mu.Unlock()
-	return out, err
+	return out, nil
 }
 
-func readDirWorker(id int, jobs <-chan string, dirs chan<- string, files chan<- file, done chan<- int, errors chan<- error) {
+func readDirWorker(id int, jobs <-chan string, dirs chan<- string, fileChan chan<- file, done chan<- int, errors chan<- error) {
 	for dir := range jobs {
 		fi, err := ioutil.ReadDir(dir)
 		if err != nil {
@@ -171,44 +172,12 @@ func readDirWorker(id int, jobs <-chan string, dirs chan<- string, files chan<- 
 				x := file{}
 				x.fi = e
 				x.path = p
-				files <- x
+				fileChan <- x
 			}
 		}
 		done <- id
 	}
 }
-
-/*
-func processDir(dir string, stat *stats) ([]file, error) {
-	fi, err := ioutil.ReadDir(dir)
-	stat.readdirs++
-	if err != nil {
-		stat.errors++
-		return []file{}, err
-	}
-
-	out := make([]file, 0, len(fi))
-	for _, e := range fi {
-		p := path.Join(dir, e.Name())
-		if e.IsDir() {
-			x, err := processDir(p, stat)
-			out = append(out, x...)
-			if err != nil {
-				log.Print(err)
-			}
-		} else if e.Mode().IsRegular() && e.Size() > 0 {
-			stat.files++
-			stat.bytes += e.Size()
-			x := file{}
-			x.fi = e
-			x.path = p
-			out = append(out, x)
-		}
-
-	}
-	return out, nil
-}
-*/
 
 func shortHashWorker(id int, wg *sync.WaitGroup, jobs <-chan file, results chan<- file, stat *stats) {
 	bufferSize := 4 << 20
