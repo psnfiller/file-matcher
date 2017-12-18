@@ -99,10 +99,11 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		go readDirWorker(i, jobs, dirs, files, done, errors)
 	}
 
-	stat.mu.Lock()
 	// first dir
 	jobs <- dir
+	stat.mu.Lock()
 	stat.readdirs++
+	stat.mu.Unlock()
 
 	outstanding := 1
 	var out []file
@@ -111,15 +112,21 @@ func processDir(dir string, stat *stats) ([]file, error) {
 		select {
 		case err := <-errors:
 			log.Print(err)
+			stat.mu.Lock()
 			stat.errors++
+			stat.mu.Unlock()
 		case d := <-dirs:
+			stat.mu.Lock()
 			stat.readdirs++
+			stat.mu.Unlock()
 			buffer = append(buffer, d)
 		case <-done:
 			outstanding--
 		case f := <-files:
+			stat.mu.Lock()
 			stat.files++
 			stat.bytes += f.Size()
+			stat.mu.Unlock()
 			out = append(out, f)
 			continue
 		}
@@ -149,7 +156,6 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	close(jobs)
 	close(dirs)
 	close(files)
-	stat.mu.Unlock()
 	return out, nil
 }
 
