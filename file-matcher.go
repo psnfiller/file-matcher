@@ -72,7 +72,6 @@ func printStats(st *stats) {
 		v, unit := humanize.ComputeSI(throughput)
 		fmt.Printf("readdir throughput %.2f%sfiles/sec\n", v, unit)
 	}
-
 	st.mu.Unlock()
 }
 
