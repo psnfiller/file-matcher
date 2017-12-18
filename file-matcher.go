@@ -297,7 +297,6 @@ func main() {
 			log.Fatal(http.ListenAndServe(addr, nil))
 		}()
 	}
-	s.ListenAndServe()
 	st := stats{}
 	go func() {
 		for {
