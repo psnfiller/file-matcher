@@ -106,11 +106,10 @@ func processDir(dir string, stat *stats) ([]file, error) {
 
 	outstanding := 1
 	var out []file
-	var err error
 	var buffer []string
 	for {
 		select {
-		case err = <-errors:
+		case err := <-errors:
 			log.Print(err)
 			stat.errors++
 		case d := <-dirs:
@@ -151,7 +150,7 @@ func processDir(dir string, stat *stats) ([]file, error) {
 	close(dirs)
 	close(files)
 	stat.mu.Unlock()
-	return out, err
+	return out, nil
 }
 
 func readDirWorker(id int, jobs <-chan string, dirs chan<- string, fileChan chan<- file, done chan<- int, errors chan<- error) {
