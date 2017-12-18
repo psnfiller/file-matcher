@@ -23,6 +23,7 @@ var (
 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to file")
 	statTimer      = flag.Duration("time_for_stats", time.Second*60, "")
 	readdirWorkers = flag.Int("readdir_workers", 10, "")
+	port           = flag.Int("port", 8080, "")
 )
 
 type stats struct {
