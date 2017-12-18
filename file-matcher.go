@@ -19,9 +19,10 @@ import (
 import _ "net/http/pprof"
 
 var (
-	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-	statTimer = flag.Duration("time_for_stats", time.Second * 60, "")
-) 
+	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to file")
+	statTimer      = flag.Duration("time_for_stats", time.Second*60, "")
+	readdirWorkers = flag.Int("readdir_workers", 10, "")
+)
 
 type stats struct {
 	mu               sync.Mutex
@@ -89,15 +90,14 @@ type file struct {
 func (f file) Size() int64 { return f.fi.Size() }
 
 func processDir(dir string, stat *stats) ([]file, error) {
-	workers := 10
 	errors := make(chan error)
 	dirs := make(chan string)
 	files := make(chan file)
-	jobs := make(chan string, workers)
-	done := make(chan int, workers)
+	jobs := make(chan string, *readdirWorkers)
+	done := make(chan int, *readdirWorkers)
 
 	// start the workers
-	for i := 0; i < workers; i++ {
+	for i := 0; i < *readdirWorkers; i++ {
 		go readDirWorker(i, jobs, dirs, files, done, errors)
 	}
 
