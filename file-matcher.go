@@ -14,9 +14,10 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-)
 
-import _ "net/http/pprof"
+	"net/http"
+	_ "net/http/pprof"
+)
 
 var (
 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -289,6 +290,13 @@ func main() {
 		}
 		defer pprof.StopCPUProfile()
 	}
+	if *port > 0 {
+		go func() {
+			addr := fmt.Sprintf(":%d", *port)
+			log.Fatal(http.ListenAndServe(addr, nil))
+		}()
+	}
+	s.ListenAndServe()
 	st := stats{}
 	go func() {
 		for {
